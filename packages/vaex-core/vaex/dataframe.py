@@ -19,6 +19,7 @@ import vaex.utils
 import numpy as np
 import concurrent.futures
 import numbers
+import pyarrow as pa
 
 from vaex.utils import Timer
 import vaex.events
@@ -33,7 +34,7 @@ import vaex.kld
 from . import selections, tasks, scopes
 from .expression import expression_namespace
 from .delayed import delayed, delayed_args, delayed_list
-from .column import Column, ColumnIndexed, ColumnSparse, ColumnString, ColumnConcatenatedLazy, str_type
+from .column import Column, ColumnIndexed, ColumnSparse, ColumnString, ColumnConcatenatedLazy, str_type, supported_column_types
 import vaex.events
 
 # py2/p3 compatibility
@@ -2002,10 +2003,6 @@ class DataFrame(object):
             if dtype != str_type:
                 if dtype.kind in 'US':
                     return str_type
-                if dtype.kind == 'O':
-                    # we lie about arrays containing strings
-                    if isinstance(data[0], six.string_types):
-                        return str_type
         return dtype
 
     @property
@@ -2843,7 +2840,7 @@ class DataFrame(object):
             renamed = '__' +vaex.utils.find_valid_name(name, used=self.get_column_names())
             self._rename(name, renamed)
 
-        if isinstance(f_or_array, (np.ndarray, Column)):
+        if isinstance(f_or_array, supported_column_types):
             data = ar = f_or_array
             # it can be None when we have an 'empty' DataFrameArrays
             if self._length_original is None:
@@ -5067,6 +5064,8 @@ class DataFrameLocal(DataFrame):
                         b = b[index2]
 
                     def normalize(ar):
+                        if isinstance(ar, pa.Array):
+                            ar = ar.to_pandas().values
                         if ar.dtype == str_type:
                             return ar
                         if ar.dtype.kind == "f" and hasattr(ar, "mask"):
@@ -5558,6 +5557,10 @@ class DataFrameConcatenated(DataFrameLocal):
     def is_masked(self, column):
         if column in self.columns:
             return self.columns[column].is_masked
+        else:
+            ar = self.evaluate(column, i1=0, i2=1, parallel=False)
+            if isinstance(ar, np.ndarray) and np.ma.isMaskedArray(ar):
+                return True
         return False
 
 
