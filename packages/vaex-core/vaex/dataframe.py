@@ -2023,7 +2023,13 @@ class DataFrame(object):
         '''Return if a column is a masked (numpy.ma) column.'''
         column = _ensure_string_from_expression(column)
         if column in self.columns:
-            return np.ma.isMaskedArray(self.columns[column])
+            column = self.columns[column]
+            if isinstance(column, np.ndarray):
+                return np.ma.isMaskedArray(column)
+            else:
+                # in case the column is not a numpy array, we take a small slice
+                # which should return a numpy array
+                return np.ma.isMaskedArray(column[0:1])
         else:
             ar = self.evaluate(column, i1=0, i2=1, parallel=False)
             if isinstance(ar, np.ndarray) and np.ma.isMaskedArray(ar):
