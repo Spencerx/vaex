@@ -78,10 +78,41 @@ jobs:
         name: distributions-universal
         path: ./dist
 
+    - name: Filter distributions based on tag
+      if: startsWith(github.ref, 'refs/tags')
+      run: |
+        TAG="${{ github.ref_name }}"
+        echo "Tag: $TAG"
+        ls -la dist/
+
+        # Keep only the package matching the tag
+        if [[ $TAG == viz-v* ]]; then
+          find dist/ -type f ! -name 'vaex_viz-*' -delete
+        elif [[ $TAG == hdf5-v* ]]; then
+          find dist/ -type f ! -name 'vaex_hdf5-*' -delete
+        elif [[ $TAG == server-v* ]]; then
+          find dist/ -type f ! -name 'vaex_server-*' -delete
+        elif [[ $TAG == astro-v* ]]; then
+          find dist/ -type f ! -name 'vaex_astro-*' -delete
+        elif [[ $TAG == jupyter-v* ]]; then
+          find dist/ -type f ! -name 'vaex_jupyter-*' -delete
+        elif [[ $TAG == ml-v* ]]; then
+          find dist/ -type f ! -name 'vaex_ml-*' -delete
+        elif [[ $TAG == graphql-v* ]]; then
+          find dist/ -type f ! -name 'vaex_graphql-*' -delete
+        elif [[ $TAG == contrib-v* ]]; then
+          find dist/ -type f ! -name 'vaex_contrib-*' -delete
+        elif [[ $TAG == v* ]]; then
+          # Main vaex package (not vaex_*)
+          find dist/ -type f ! -name 'vaex-*' -delete
+        fi
+
+        echo "Filtered distributions:"
+        ls -la dist/
+
     # https://github.com/pypa/gh-action-pypi-publish#trusted-publishing
     - name: Publish package distributions to PyPI
       uses: pypa/gh-action-pypi-publish@v1.12.4
       if: startsWith(github.ref, 'refs/tags')
-      continue-on-error: true
       with:
         skip-existing: true
